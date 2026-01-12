@@ -1,5 +1,6 @@
 #include <bits/stdc++.h>
 using namespace std;
+#define int long long
 
 void fastInputOutput()
 {
@@ -7,82 +8,69 @@ void fastInputOutput()
     cin.tie(nullptr);
 }
 
-int main()
+int32_t main()
 {
     fastInputOutput();
     int n;
     cin >> n;
-    vector<vector<int>> adj(n);
-    vector<vector<int>> radj(n); // reverse graph: for incoming edges
-    vector<int> indegree(n, 0);
-
-    // Read edges and build both normal and reverse graphs.
+    vector<vector<int>> adj(n + 1);
+    vector<int> indegree(n + 1, 0);
+    // Read edges: (assuming n-1 edges for a tree or forest)
     for (int i = 1; i <= n - 1; i++)
     {
-        int u, v;
-        cin >> u >> v;
-        // u->v edge. (Assumption: the input specifies a tree/DAG.)
-        adj[u].push_back(v);
-        radj[v].push_back(u);
-        indegree[v]++;
+        int x, y;
+        cin >> x >> y;
+        adj[x].push_back(y);
+        indegree[y]++;
     }
-
-    // Compute topological order.
-    vector<int> topoSort;
+    
+    // Get topological order and record roots (nodes with indegree 0)
     queue<int> q;
-    for (int i = 0; i < n; i++)
+    vector<int> ans;
+    set<int> roots;
+    for (int i = 1; i <= n; i++)
     {
         if (indegree[i] == 0)
         {
             q.push(i);
+            roots.insert(i);
         }
     }
     while (!q.empty())
     {
         int node = q.front();
         q.pop();
-        topoSort.push_back(node);
-        for (auto &child : adj[node])
+        ans.push_back(node);
+        for (auto child : adj[node])
         {
             indegree[child]--;
             if (indegree[child] == 0)
-            {
                 q.push(child);
-            }
         }
     }
-
-    vector<vector<int>> dp(n, vector<int>(2, 0));
-    for (int node : topoSort)
+    
+    // dp[node][0]: ways when node is not chosen
+    // dp[node][1]: ways when node is chosen
+    // Initialise all nodes to 1.
+    vector<vector<int>> dp(n + 1, vector<int>(2, 1));
+    
+    // Process nodes in reverse topological order (from leaves up)
+    for (int i = ans.size() - 1; i >= 0; i--)
     {
-        if (adj[node].empty())
+        int node = ans[i];
+        for (auto child : adj[node])
         {
-            dp[node][1] = 1;
-            dp[node][0] = 0;
+            dp[node][0] *= (dp[child][0] + dp[child][1]);
+            dp[node][1] *= dp[child][0];
         }
     }
-
-    // Process nodes in reverse topological order (bottom-up).
-    // Now, for each node, add contributions from every incoming edge (i.e. from its parent)
-    for (int i = 1; i < topoSort.size(); i++)
+    
+    int result = 1;
+    for (auto r : roots)
     {
-        int node = topoSort[i];
-        for (auto &parent : radj[node])
-        {
-            // Accumulate dp from node into parent's dp.
-            dp[parent][1] += dp[node][0];
-            dp[parent][0] += dp[node][0] + dp[node][1];
-        }
+        result *= (dp[r][0] + dp[r][1]);
     }
-
-    int answer = 0;
-    for (int i = 0; i < n; i++)
-    {
-        if (radj[i].empty())
-        {
-            answer += dp[i][0] + dp[i][1];
-        }
-    }
-    cout << answer << "\n";
+    
+    cout << result << "\n";
     return 0;
 }
